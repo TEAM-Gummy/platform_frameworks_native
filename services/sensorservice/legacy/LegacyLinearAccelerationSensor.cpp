@@ -22,43 +22,48 @@
 
 #include <hardware/sensors.h>
 
-#include "LinearAccelerationSensor.h"
-#include "SensorDevice.h"
-#include "SensorFusion.h"
+#include "LegacyLinearAccelerationSensor.h"
+#include "../SensorDevice.h"
+#include "../SensorFusion.h"
 
 namespace android {
 // ---------------------------------------------------------------------------
 
-LinearAccelerationSensor::LinearAccelerationSensor(sensor_t const* list, size_t count)
+LegacyLinearAccelerationSensor::LegacyLinearAccelerationSensor(sensor_t const* list, size_t count)
     : mSensorDevice(SensorDevice::getInstance()),
       mGravitySensor(list, count)
 {
+    mData[0] = mData[1] = mData[2] = 0;
 }
 
-bool LinearAccelerationSensor::process(sensors_event_t* outEvent,
+bool LegacyLinearAccelerationSensor::process(sensors_event_t* outEvent,
         const sensors_event_t& event)
 {
     bool result = mGravitySensor.process(outEvent, event);
-    if (result && event.type == SENSOR_TYPE_ACCELEROMETER) {
-        outEvent->data[0] = event.acceleration.x - outEvent->data[0];
-        outEvent->data[1] = event.acceleration.y - outEvent->data[1];
-        outEvent->data[2] = event.acceleration.z - outEvent->data[2];
+    if (result) {
+        if (event.type == SENSOR_TYPE_ACCELEROMETER) {
+            mData[0] = event.acceleration.x;
+            mData[1] = event.acceleration.y;
+            mData[2] = event.acceleration.z;
+        }
+        outEvent->data[0] = mData[0] - outEvent->data[0];
+        outEvent->data[1] = mData[1] - outEvent->data[1];
+        outEvent->data[2] = mData[2] - outEvent->data[2];
         outEvent->sensor = '_lin';
         outEvent->type = SENSOR_TYPE_LINEAR_ACCELERATION;
-        return true;
     }
-    return false;
+    return result;
 }
 
-status_t LinearAccelerationSensor::activate(void* ident, bool enabled) {
+status_t LegacyLinearAccelerationSensor::activate(void* ident, bool enabled) {
     return mGravitySensor.activate(this, enabled);
 }
 
-status_t LinearAccelerationSensor::setDelay(void* ident, int handle, int64_t ns) {
+status_t LegacyLinearAccelerationSensor::setDelay(void* ident, int handle, int64_t ns) {
     return mGravitySensor.setDelay(this, handle, ns);
 }
 
-Sensor LinearAccelerationSensor::getSensor() const {
+Sensor LegacyLinearAccelerationSensor::getSensor() const {
     Sensor gsensor(mGravitySensor.getSensor());
     sensor_t hwSensor;
     hwSensor.name       = "Linear Acceleration Sensor";

@@ -33,9 +33,6 @@ OrientationSensor::OrientationSensor()
     : mSensorDevice(SensorDevice::getInstance()),
       mSensorFusion(SensorFusion::getInstance())
 {
-    // FIXME: instead of using the SensorFusion code, we should use
-    // the SENSOR_TYPE_ROTATION_VECTOR instead. This way we could use the
-    // HAL's implementation.
 }
 
 bool OrientationSensor::process(sensors_event_t* outEvent,
@@ -66,17 +63,17 @@ bool OrientationSensor::process(sensors_event_t* outEvent,
 }
 
 status_t OrientationSensor::activate(void* ident, bool enabled) {
-    return mSensorFusion.activate(ident, enabled);
+    return mSensorFusion.activate(this, enabled);
 }
 
 status_t OrientationSensor::setDelay(void* ident, int handle, int64_t ns) {
-    return mSensorFusion.setDelay(ident, ns);
+    return mSensorFusion.setDelay(this, ns);
 }
 
 Sensor OrientationSensor::getSensor() const {
     sensor_t hwSensor;
     hwSensor.name       = "Orientation Sensor";
-    hwSensor.vendor     = "AOSP";
+    hwSensor.vendor     = "Google Inc.";
     hwSensor.version    = 1;
     hwSensor.handle     = '_ypr';
     hwSensor.type       = SENSOR_TYPE_ORIENTATION;

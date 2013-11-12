@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011 The Android Open Source Project
+ * Copyright (C) 2010 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,15 +14,16 @@
  * limitations under the License.
  */
 
-#ifndef ANDROID_ORIENTATION_SENSOR_H
-#define ANDROID_ORIENTATION_SENSOR_H
+#ifndef ANDROID_LEGACY_LINEAR_ACCELERATION_SENSOR_H
+#define ANDROID_LEGACY_LINEAR_ACCELERATION_SENSOR_H
 
 #include <stdint.h>
 #include <sys/types.h>
 
 #include <gui/Sensor.h>
 
-#include "SensorInterface.h"
+#include "../SensorInterface.h"
+#include "LegacyGravitySensor.h"
 
 // ---------------------------------------------------------------------------
 namespace android {
@@ -31,14 +32,15 @@ namespace android {
 class SensorDevice;
 class SensorFusion;
 
-class OrientationSensor : public SensorInterface {
+class LegacyLinearAccelerationSensor : public SensorInterface {
     SensorDevice& mSensorDevice;
-    SensorFusion& mSensorFusion;
+    LegacyGravitySensor mGravitySensor;
+    float mData[3];
 
-public:
-    OrientationSensor();
     virtual bool process(sensors_event_t* outEvent,
             const sensors_event_t& event);
+public:
+    LegacyLinearAccelerationSensor(sensor_t const* list, size_t count);
     virtual status_t activate(void* ident, bool enabled);
     virtual status_t setDelay(void* ident, int handle, int64_t ns);
     virtual Sensor getSensor() const;
@@ -48,4 +50,4 @@ public:
 // ---------------------------------------------------------------------------
 }; // namespace android
 
-#endif // ANDROID_ORIENTATION_SENSOR_H
+#endif // ANDROID_LEGACY_LINEAR_ACCELERATION_SENSOR_H

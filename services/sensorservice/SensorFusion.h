@@ -37,7 +37,6 @@ class SensorDevice;
 
 class SensorFusion : public Singleton<SensorFusion> {
     friend class Singleton<SensorFusion>;
-    static const nsecs_t DEFAULT_EVENTS_PERIOD = 200000000;  //  5 Hz
 
     SensorDevice& mSensorDevice;
     Sensor mAcc;
@@ -45,7 +44,7 @@ class SensorFusion : public Singleton<SensorFusion> {
     Sensor mGyro;
     Fusion mFusion;
     bool mEnabled;
-    float mEstimatedGyroRate;
+    float mGyroRate;
     nsecs_t mTargetDelayNs;
     nsecs_t mGyroTime;
     vec4_t mAttitude;
@@ -61,7 +60,7 @@ public:
     mat33_t getRotationMatrix() const { return mFusion.getRotationMatrix(); }
     vec4_t getAttitude() const { return mAttitude; }
     vec3_t getGyroBias() const { return mFusion.getBias(); }
-    float getEstimatedRate() const { return mEstimatedGyroRate; }
+    float getEstimatedRate() const { return mGyroRate; }
 
     status_t activate(void* ident, bool enabled);
     status_t setDelay(void* ident, int64_t ns);
@@ -69,7 +68,7 @@ public:
     float getPowerUsage() const;
     int32_t getMinDelay() const;
 
-    void dump(String8& result);
+    void dump(String8& result, char* buffer, size_t SIZE);
 };
 
 

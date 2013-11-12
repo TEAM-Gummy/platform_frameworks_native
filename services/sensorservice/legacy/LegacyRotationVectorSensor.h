@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011 The Android Open Source Project
+ * Copyright (C) 2010 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,29 +14,38 @@
  * limitations under the License.
  */
 
-#ifndef ANDROID_ORIENTATION_SENSOR_H
-#define ANDROID_ORIENTATION_SENSOR_H
+#ifndef ANDROID_LEGACY_ROTATION_VECTOR_SENSOR_H
+#define ANDROID_LEGACY_ROTATION_VECTOR_SENSOR_H
 
 #include <stdint.h>
 #include <sys/types.h>
 
 #include <gui/Sensor.h>
 
-#include "SensorInterface.h"
+#include "../SensorDevice.h"
+#include "../SensorInterface.h"
+
+#include "../Fusion.h"
+#include "../SensorFusion.h"
+#include "SecondOrderLowPassFilter.h"
 
 // ---------------------------------------------------------------------------
 namespace android {
 // ---------------------------------------------------------------------------
 
-class SensorDevice;
-class SensorFusion;
-
-class OrientationSensor : public SensorInterface {
+class LegacyRotationVectorSensor : public SensorInterface {
     SensorDevice& mSensorDevice;
     SensorFusion& mSensorFusion;
+    float mMagData[3];
+    double mAccTime;
+    double mMagTime;
+    SecondOrderLowPassFilter mALowPass;
+    CascadedBiquadFilter mAX, mAY, mAZ;
+    SecondOrderLowPassFilter mMLowPass;
+    CascadedBiquadFilter mMX, mMY, mMZ;
 
 public:
-    OrientationSensor();
+    LegacyRotationVectorSensor();
     virtual bool process(sensors_event_t* outEvent,
             const sensors_event_t& event);
     virtual status_t activate(void* ident, bool enabled);
@@ -48,4 +57,4 @@ public:
 // ---------------------------------------------------------------------------
 }; // namespace android
 
-#endif // ANDROID_ORIENTATION_SENSOR_H
+#endif // ANDROID_LEGACY_ROTATION_VECTOR_SENSOR_H
