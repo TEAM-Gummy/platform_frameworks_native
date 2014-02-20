@@ -36,8 +36,11 @@
 
 #ifdef QCOM_BSP
 #include <gralloc_priv.h>
+#include <qdMetaData.h>
+#ifdef VFM_AVAILABLE
+#include "vfm_metadata.h"
+#endif //VFM_AVAILABLE
 #endif
-
 namespace android {
 
 Surface::Surface(
@@ -79,6 +82,10 @@ Surface::Surface(
     mConnectedToCpu = false;
     mProducerControlledByApp = controlledByApp;
     mSwapIntervalZero = false;
+#ifdef SURFACE_SKIP_FIRST_DEQUEUE
+    mDequeuedOnce = false;
+#endif
+    mDequeueIdx = 0;
 }
 
 Surface::~Surface() {
@@ -166,6 +173,18 @@ int Surface::hook_perform(ANativeWindow* window, int operation, ...) {
     return c->perform(operation, args);
 }
 
+int Surface::setDirtyRegion(Region* inOutDirtyRegion) {
+    Rect dirty;
+    if(inOutDirtyRegion)
+         dirty = inOutDirtyRegion->getBounds();
+    Mutex::Autolock lock(mMutex);
+    status_t res = mGraphicBufferProducer->updateDirtyRegion(mDequeueIdx,
+                                      dirty.left, dirty.top, dirty.right,
+                                      dirty.bottom);
+    return res;
+}
+
+
 int Surface::setSwapInterval(int interval) {
     ATRACE_CALL();
     // EGL specification states:
@@ -199,6 +218,9 @@ int Surface::dequeueBuffer(android_native_buffer_t** buffer, int* fenceFd) {
              result);
         return result;
     }
+
+    mDequeueIdx = buf;
+
     sp<GraphicBuffer>& gbuf(mSlots[buf].buffer);
 
     // this should never happen
@@ -213,6 +235,9 @@ int Surface::dequeueBuffer(android_native_buffer_t** buffer, int* fenceFd) {
         if (result != NO_ERROR) {
             ALOGE("dequeueBuffer: IGraphicBufferProducer::requestBuffer failed: %d", result);
             return result;
+        } else if (gbuf == 0) {
+            ALOGE("dequeueBuffer: Buffer is null return");
+            return INVALID_OPERATION;
         }
     }
 
@@ -229,6 +254,9 @@ int Surface::dequeueBuffer(android_native_buffer_t** buffer, int* fenceFd) {
     }
 
     *buffer = gbuf.get();
+#ifdef SURFACE_SKIP_FIRST_DEQUEUE
+    if (!mDequeuedOnce) mDequeuedOnce = true;
+#endif
     return OK;
 }
 
@@ -279,6 +307,27 @@ int Surface::queueBuffer(android_native_buffer_t* buffer, int fenceFd) {
     } else {
         timestamp = mTimestamp;
     }
+#ifdef QCOM_BSP
+#ifdef VFM_AVAILABLE
+    /* Add a session ID while queuing the buffers to maintain session
+       association */
+    {
+        int nErr;
+        private_handle_t* pBufPrvtHandle = (private_handle_t*)buffer->handle;
+
+        VfmMetaData_t vfmMetaData;
+        memset(&vfmMetaData, 0, sizeof(VfmMetaData_t));
+
+        vfmMetaData.type = VFM_SESSION_ID;
+        vfmMetaData.sessionId =
+            reinterpret_cast<int>(mGraphicBufferProducer.get());
+        nErr = setMetaData(pBufPrvtHandle, PP_PARAM_VFM_DATA,
+            (void*)&vfmMetaData);
+        if(0 != nErr)
+            ALOGE("Error:%d in setMetaData PP_PARAM_SESSIONID", nErr);
+   }
+#endif
+#endif
     int i = getSlotFromBufferLocked(buffer);
     if (i < 0) {
         return i;
@@ -319,12 +368,19 @@ int Surface::query(int what, int* value) const {
                 }
                 break;
             case NATIVE_WINDOW_QUEUES_TO_WINDOW_COMPOSER: {
-                sp<ISurfaceComposer> composer(
-                        ComposerService::getComposerService());
-                if (composer->authenticateSurfaceTexture(mGraphicBufferProducer)) {
-                    *value = 1;
-                } else {
+#ifdef SURFACE_SKIP_FIRST_DEQUEUE
+                if (!mDequeuedOnce) {
                     *value = 0;
+                } else
+#endif
+                {
+                    sp<ISurfaceComposer> composer(
+                            ComposerService::getComposerService());
+                    if (composer->authenticateSurfaceTexture(mGraphicBufferProducer)) {
+                        *value = 1;
+                    } else {
+                        *value = 0;
+                    }
                 }
                 return NO_ERROR;
             }
@@ -351,6 +407,16 @@ int Surface::query(int what, int* value) const {
                     }
                 }
                 return err;
+            }
+            case NATIVE_WINDOW_CONSUMER_USAGE_BITS: {
+                status_t err = NO_ERROR;
+                err = mGraphicBufferProducer->query(what, value);
+                if(err == NO_ERROR) {
+                    *value |= mReqUsage;
+                    return NO_ERROR;
+                } else {
+                    return err;
+                }
             }
         }
     }

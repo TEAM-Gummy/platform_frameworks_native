@@ -60,6 +60,10 @@ ifeq ($(TARGET_RUNNING_WITHOUT_SYNC_FRAMEWORK),true)
     LOCAL_CFLAGS += -DRUNNING_WITHOUT_SYNC_FRAMEWORK
 endif
 
+ifeq ($(BOARD_USE_MHEAP_SCREENSHOT),true)
+    LOCAL_CFLAGS += -DUSE_MHEAP_SCREENSHOT
+endif
+
 # See build/target/board/generic/BoardConfig.mk for a description of this setting.
 ifneq ($(VSYNC_EVENT_PHASE_OFFSET_NS),)
     LOCAL_CFLAGS += -DVSYNC_EVENT_PHASE_OFFSET_NS=$(VSYNC_EVENT_PHASE_OFFSET_NS)
@@ -78,10 +82,6 @@ ifneq ($(PRESENT_TIME_OFFSET_FROM_VSYNC_NS),)
     LOCAL_CFLAGS += -DPRESENT_TIME_OFFSET_FROM_VSYNC_NS=$(PRESENT_TIME_OFFSET_FROM_VSYNC_NS)
 else
     LOCAL_CFLAGS += -DPRESENT_TIME_OFFSET_FROM_VSYNC_NS=0
-endif
-
-ifeq ($(TARGET_USES_OPENGLES_FOR_SCREEN_CAPTURE),true)
-	LOCAL_CFLAGS += -DUSE_OPENGLES_FOR_SCREEN_CAPTURE
 endif
 
 LOCAL_CFLAGS += -fvisibility=hidden
@@ -113,6 +113,12 @@ else
     LOCAL_C_INCLUDES += hardware/qcom/display/$(TARGET_BOARD_PLATFORM)/libgralloc
 endif
     LOCAL_CFLAGS += -DQCOM_BSP
+endif
+
+# Swaprect optimization has only been verified on QC devices, and at least
+# some devices with Mali have glitching with it enabled.
+ifeq ($(call is-vendor-board-platform,QCOM),true)
+    LOCAL_CFLAGS += -DENABLE_SWAPRECT
 endif
 
 LOCAL_MODULE:= libsurfaceflinger
